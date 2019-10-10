@@ -1,7 +1,6 @@
 *.bak
 *.txt
 *.vm
-.gitignore
 
 
 # built application files
