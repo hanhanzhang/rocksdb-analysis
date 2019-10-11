@@ -1,6 +1,10 @@
 package com.sdu.rocksdb;
 
 import com.sdu.rocksdb.serializer.DataSerializer;
+import com.sdu.rocksdb.snapshot.RocksDBFullSnapshotStrategy;
+import com.sdu.rocksdb.snapshot.RocksDBIncrementSnapshotStrategy;
+import com.sdu.rocksdb.snapshot.SnapshotStrategy;
+import com.sdu.rocksdb.snapshot.SnapshotType;
 import com.sdu.rocksdb.utils.RocksDBOperationUtils;
 import com.sdu.rocksdb.utils.RocksIteratorWrapper;
 import java.io.IOException;
@@ -11,10 +15,8 @@ import java.util.function.Function;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.Options;
-import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.Snapshot;
 import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,10 +37,11 @@ public class RocksDBStorageBackend implements StorageBackend {
   private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
 
   private RocksDB db;
+  private SnapshotStrategy snapshotStrategy;
 
   private final Map<String, ColumnFamilyHandle> namespaceInformation;
 
-  public RocksDBStorageBackend(String path, Function<String, ColumnFamilyOptions> factory) {
+  public RocksDBStorageBackend(String path, Function<String, ColumnFamilyOptions> factory, SnapshotType type) {
     this.writeOptions = new WriteOptions().setDisableWAL(false);
     this.columnFamilyOptionsFactory = factory;
 
@@ -54,6 +57,14 @@ public class RocksDBStorageBackend implements StorageBackend {
 
     try {
       db = RocksDB.open(options, path);
+      switch (type) {
+        case FULL:
+          snapshotStrategy = new RocksDBFullSnapshotStrategy(db, namespaceInformation);
+          break;
+        case INCREMENT:
+          snapshotStrategy = new RocksDBIncrementSnapshotStrategy(db, path, namespaceInformation);
+          break;
+      }
     } catch (RocksDBException e) {
       // ignore
       LOG.error("initialize RocksDB failure !!!", e);
@@ -107,8 +118,7 @@ public class RocksDBStorageBackend implements StorageBackend {
 
   @Override
   public void snapshot(String namespace, DataSerializer serializer) throws IOException {
-
-
+    snapshotStrategy.snapshot(namespace, serializer);
   }
 
   private static Map<byte[], byte[]> getData(RocksIteratorWrapper iterator) throws IOException {
