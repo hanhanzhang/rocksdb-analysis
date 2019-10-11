@@ -62,7 +62,7 @@ public class RocksDBStorageBackend implements StorageBackend {
           snapshotStrategy = new RocksDBFullSnapshotStrategy(db, namespaceInformation);
           break;
         case INCREMENT:
-          snapshotStrategy = new RocksDBIncrementSnapshotStrategy(db, path, namespaceInformation);
+          snapshotStrategy = new RocksDBIncrementSnapshotStrategy(db, path);
           break;
       }
     } catch (RocksDBException e) {

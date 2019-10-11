@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -21,7 +22,7 @@ public class RocksDBIncrementSnapshotStrategy implements SnapshotStrategy {
   private static final String SST_FILE_SUFFIX = ".sst";
 
   private final RocksDB db;
-  private final String path;
+  private final String pathTemplate;
 
   /** 已完成的快照的文件句柄集合 */
   private final SortedMap<Long, Set<DataHandleID>> materializedSstFiles;
@@ -30,7 +31,7 @@ public class RocksDBIncrementSnapshotStrategy implements SnapshotStrategy {
 
   public RocksDBIncrementSnapshotStrategy(RocksDB db, String path) {
     this.db = db;
-    this.path = path + File.pathSeparator + "chk";
+    this.pathTemplate = path + "/chk-%d";
 
     this.materializedSstFiles = new TreeMap<>();
   }
@@ -43,10 +44,11 @@ public class RocksDBIncrementSnapshotStrategy implements SnapshotStrategy {
        *
        * 软链接和硬链接的区别参考: https://www.jianshu.com/p/dde6a01c4094
        * **/
+      String localBackupDirectoryPath = String.format(pathTemplate, lastCompletedCheckpointId + 1);
       Checkpoint checkpoint = Checkpoint.create(db);
-      checkpoint.createCheckpoint(path);
+      checkpoint.createCheckpoint(localBackupDirectoryPath);
 
-      File localBackupDirectory = new File(path);
+      File localBackupDirectory = new File(localBackupDirectoryPath);
       assert localBackupDirectory.exists() : "RocksDB checkpoint failure.";
       File[] files = localBackupDirectory.listFiles();
       assert files != null && files.length > 0;
@@ -54,7 +56,7 @@ public class RocksDBIncrementSnapshotStrategy implements SnapshotStrategy {
       // step1: 上次快照的文件集合
       Set<DataHandleID> baseSstFiles = materializedSstFiles.get(lastCompletedCheckpointId);
 
-      // step2: 选取本次快照的文件集合
+      // step2: 选取本次快照的文件集合(剔除上次做的快照文件集合)
       Map<DataHandleID, File> sstFilePaths = new HashMap<>();
       Map<DataHandleID, File> miscFilePaths = new HashMap<>();
       for (File file : files) {
@@ -79,7 +81,8 @@ public class RocksDBIncrementSnapshotStrategy implements SnapshotStrategy {
       // step4: 快照版本号自增, 记录本次快照文件
       lastCompletedCheckpointId += 1;
       if (baseSstFiles != null) {
-        Set<DataHandleID> newDataHandleIDs = sstFilePaths.keySet();
+        Set<DataHandleID> newDataHandleIDs = new HashSet<>();
+        newDataHandleIDs.addAll(sstFilePaths.keySet());
         newDataHandleIDs.addAll(baseSstFiles);
         materializedSstFiles.put(lastCompletedCheckpointId, newDataHandleIDs);
       } else {
