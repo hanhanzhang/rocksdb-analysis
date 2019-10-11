@@ -8,6 +8,6 @@ import java.io.IOException;
  * */
 public interface SnapshotStrategy {
 
-  void snapshot(String namespace, DataSerializer serializer) throws IOException;
+  void snapshot(DataSerializer serializer) throws IOException;
 
 }

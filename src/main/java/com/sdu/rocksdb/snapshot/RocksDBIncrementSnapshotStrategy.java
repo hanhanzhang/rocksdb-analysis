@@ -37,7 +37,7 @@ public class RocksDBIncrementSnapshotStrategy implements SnapshotStrategy {
   }
 
   @Override
-  public void snapshot(String namespace, DataSerializer serializer) throws IOException {
+  public void snapshot(DataSerializer serializer) throws IOException {
     try {
       /*
        * 创建硬链接

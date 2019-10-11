@@ -17,6 +17,6 @@ public interface StorageBackend {
 
   Map<byte[], byte[]> getAll() throws IOException;
 
-  void snapshot(String namespace, DataSerializer serializer) throws IOException;
+  void snapshot(DataSerializer serializer) throws IOException;
 
 }

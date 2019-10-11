@@ -17,6 +17,7 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.Statistics;
 import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +55,7 @@ public class RocksDBStorageBackend implements StorageBackend {
     Options options = new Options().setCreateIfMissing(true);
     options.setLogger(new RocksDBLogger(options, LOG));
     options.createMissingColumnFamilies();
+//    options.setStatistics(new Statistics());
 
     try {
       db = RocksDB.open(options, path);
@@ -117,8 +119,8 @@ public class RocksDBStorageBackend implements StorageBackend {
   }
 
   @Override
-  public void snapshot(String namespace, DataSerializer serializer) throws IOException {
-    snapshotStrategy.snapshot(namespace, serializer);
+  public void snapshot(DataSerializer serializer) throws IOException {
+    snapshotStrategy.snapshot(serializer);
   }
 
   private static Map<byte[], byte[]> getData(RocksIteratorWrapper iterator) throws IOException {
