@@ -1,5 +1,6 @@
 package com.sdu.rocksdb;
 
+import com.sdu.rocksdb.serializer.RocksDBDataSerializer;
 import com.sdu.rocksdb.utils.RocksDBOperationUtils;
 import com.sdu.rocksdb.utils.RocksIteratorWrapper;
 import java.io.IOException;
@@ -10,8 +11,10 @@ import java.util.function.Function;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.Options;
+import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.Snapshot;
 import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +38,7 @@ public class RocksDBStorageBackend implements StorageBackend {
 
   private final Map<String, ColumnFamilyHandle> namespaceInformation;
 
-  private RocksDBStorageBackend(String path, Function<String, ColumnFamilyOptions> factory) {
+  public RocksDBStorageBackend(String path, Function<String, ColumnFamilyOptions> factory) {
     this.writeOptions = new WriteOptions().setDisableWAL(false);
     this.columnFamilyOptionsFactory = factory;
 
@@ -47,6 +50,7 @@ public class RocksDBStorageBackend implements StorageBackend {
      * */
     Options options = new Options().setCreateIfMissing(true);
     options.setLogger(new RocksDBLogger(options, LOG));
+    options.createMissingColumnFamilies();
 
     try {
       db = RocksDB.open(options, path);
@@ -90,23 +94,51 @@ public class RocksDBStorageBackend implements StorageBackend {
       return Collections.emptyMap();
     }
 
-    Map<byte[], byte[]> keyValues = new HashMap<>();
     RocksIteratorWrapper iterator = new RocksIteratorWrapper(db.newIterator(columnFamilyHandle));
+    return getData(iterator);
+  }
+
+  @Override
+  public Map<byte[], byte[]> getAll() throws IOException {
+    // TODO: 如何使用?
+    RocksIteratorWrapper iterator = new RocksIteratorWrapper(db.newIterator());
+    return getData(iterator);
+  }
+
+  @Override
+  public void snapshot(String namespace, RocksDBDataSerializer serializer) throws IOException {
+    ColumnFamilyHandle columnFamilyHandle = namespaceInformation.get(namespace);
+    if (columnFamilyHandle == null) {
+      return;
+    }
+
+    // TODO: 增量 or 全量
+    Snapshot snapshot = db.getSnapshot();
+
+    // 读取快照数据
+    ReadOptions readOptions = new ReadOptions();
+    readOptions.setSnapshot(snapshot);
+    RocksIteratorWrapper iterator = new RocksIteratorWrapper(db.newIterator(columnFamilyHandle, readOptions));
     try {
-      while (iterator.isValid()) {
+      for (iterator.seekToFirst(); iterator.isValid(); iterator.next()) {
+        serializer.serializer(iterator.key());
+        serializer.serializer(iterator.value());
+      }
+    } catch (Exception e) {
+      throw new IOException("RocksDB snapshot failure when iterator data", e);
+    }
+
+  }
+
+  private static Map<byte[], byte[]> getData(RocksIteratorWrapper iterator) throws IOException {
+    Map<byte[], byte[]> keyValues = new HashMap<>();
+    try {
+      for (iterator.seekToFirst(); iterator.isValid(); iterator.next()) {
         keyValues.put(iterator.key(), iterator.value());
-        iterator.next();
       }
       return keyValues;
     } catch (Exception e) {
       throw new IOException("iterator RocksDB data failure", e);
     }
-
   }
-
-  @Override
-  public void snapshot(String namespace) throws IOException {
-
-  }
-
 }
