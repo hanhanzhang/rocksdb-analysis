@@ -1,6 +1,6 @@
 package com.sdu.rocksdb;
 
-import com.sdu.rocksdb.serializer.RocksDBDataSerializer;
+import com.sdu.rocksdb.serializer.DataSerializer;
 import com.sdu.rocksdb.utils.RocksDBOperationUtils;
 import com.sdu.rocksdb.utils.RocksIteratorWrapper;
 import java.io.IOException;
@@ -106,27 +106,8 @@ public class RocksDBStorageBackend implements StorageBackend {
   }
 
   @Override
-  public void snapshot(String namespace, RocksDBDataSerializer serializer) throws IOException {
-    ColumnFamilyHandle columnFamilyHandle = namespaceInformation.get(namespace);
-    if (columnFamilyHandle == null) {
-      return;
-    }
+  public void snapshot(String namespace, DataSerializer serializer) throws IOException {
 
-    // TODO: 增量 or 全量
-    Snapshot snapshot = db.getSnapshot();
-
-    // 读取快照数据
-    ReadOptions readOptions = new ReadOptions();
-    readOptions.setSnapshot(snapshot);
-    RocksIteratorWrapper iterator = new RocksIteratorWrapper(db.newIterator(columnFamilyHandle, readOptions));
-    try {
-      for (iterator.seekToFirst(); iterator.isValid(); iterator.next()) {
-        serializer.serializer(iterator.key());
-        serializer.serializer(iterator.value());
-      }
-    } catch (Exception e) {
-      throw new IOException("RocksDB snapshot failure when iterator data", e);
-    }
 
   }
 

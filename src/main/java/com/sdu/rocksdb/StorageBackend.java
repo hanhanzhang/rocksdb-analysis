@@ -1,6 +1,6 @@
 package com.sdu.rocksdb;
 
-import com.sdu.rocksdb.serializer.RocksDBDataSerializer;
+import com.sdu.rocksdb.serializer.DataSerializer;
 import java.io.IOException;
 import java.util.Map;
 
@@ -17,6 +17,6 @@ public interface StorageBackend {
 
   Map<byte[], byte[]> getAll() throws IOException;
 
-  void snapshot(String namespace, RocksDBDataSerializer serializer) throws IOException;
+  void snapshot(String namespace, DataSerializer serializer) throws IOException;
 
 }
