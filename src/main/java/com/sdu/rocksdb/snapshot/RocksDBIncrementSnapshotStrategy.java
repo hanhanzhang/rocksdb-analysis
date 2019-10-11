@@ -1,8 +1,8 @@
 package com.sdu.rocksdb.snapshot;
 
-import com.sdu.rocksdb.serializer.DataSerializer;
+import com.sdu.rocksdb.serializer.ByteArraySerializer;
 import com.sdu.rocksdb.utils.DataHandleID;
-import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream;
+import java.io.DataOutput;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -37,7 +37,7 @@ public class RocksDBIncrementSnapshotStrategy implements SnapshotStrategy {
   }
 
   @Override
-  public void snapshot(DataSerializer serializer) throws IOException {
+  public void snapshot(ByteArraySerializer serializer, DataOutput output) throws IOException {
     try {
       /*
        * 创建硬链接
@@ -75,8 +75,8 @@ public class RocksDBIncrementSnapshotStrategy implements SnapshotStrategy {
       }
 
       // step3: 开始做快照
-      uploadFilesToCheckpointFs(sstFilePaths, serializer);
-      uploadFilesToCheckpointFs(miscFilePaths, serializer);
+      uploadFilesToCheckpointFs(sstFilePaths, serializer, output);
+      uploadFilesToCheckpointFs(miscFilePaths, serializer, output);
 
       // step4: 快照版本号自增, 记录本次快照文件
       lastCompletedCheckpointId += 1;
@@ -96,24 +96,23 @@ public class RocksDBIncrementSnapshotStrategy implements SnapshotStrategy {
 
   }
 
-  private static void uploadFilesToCheckpointFs(Map<DataHandleID, File> files, DataSerializer serializer) throws IOException {
+  private static void uploadFilesToCheckpointFs(Map<DataHandleID, File> files, ByteArraySerializer serializer, DataOutput output) throws IOException {
     for (Entry<DataHandleID, File> entry : files.entrySet()) {
       FileInputStream inputStream = new FileInputStream(entry.getValue());
-      ByteOutputStream outputStream = new ByteOutputStream();
+      try {
+        // 16KB
+        byte[] buffer = new byte[16 * 1024];
 
-      // 16KB
-      byte[] buffer = new byte[16 * 1024];
-
-      while (true) {
-        int numBytes = inputStream.read(buffer);
-        if (numBytes == -1) {
-          break;
+        while (true) {
+          int numBytes = inputStream.read(buffer);
+          if (numBytes == -1) {
+            break;
+          }
+          serializer.serializer(buffer, 0, numBytes, output);
         }
-        outputStream.write(buffer, 0, numBytes);
+      } finally {
+        inputStream.close();
       }
-
-      outputStream.flush();
-      serializer.serializer(outputStream.getBytes());
     }
   }
 

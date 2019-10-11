@@ -1,6 +1,7 @@
 package com.sdu.rocksdb.snapshot;
 
-import com.sdu.rocksdb.serializer.DataSerializer;
+import com.sdu.rocksdb.serializer.ByteArraySerializer;
+import java.io.DataOutput;
 import java.io.IOException;
 
 /**
@@ -8,6 +9,6 @@ import java.io.IOException;
  * */
 public interface SnapshotStrategy {
 
-  void snapshot(DataSerializer serializer) throws IOException;
+  void snapshot(ByteArraySerializer serializer, DataOutput output) throws IOException;
 
 }

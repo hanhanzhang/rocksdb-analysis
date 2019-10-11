@@ -1,12 +1,13 @@
 package com.sdu.rocksdb;
 
-import com.sdu.rocksdb.serializer.DataSerializer;
+import com.sdu.rocksdb.serializer.ByteArraySerializer;
 import com.sdu.rocksdb.snapshot.RocksDBFullSnapshotStrategy;
 import com.sdu.rocksdb.snapshot.RocksDBIncrementSnapshotStrategy;
 import com.sdu.rocksdb.snapshot.SnapshotStrategy;
 import com.sdu.rocksdb.snapshot.SnapshotType;
 import com.sdu.rocksdb.utils.RocksDBOperationUtils;
 import com.sdu.rocksdb.utils.RocksIteratorWrapper;
+import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -17,7 +18,6 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.Statistics;
 import org.rocksdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 /**
  * @author hanhan.zhang
  * */
-public class RocksDBStorageBackend implements StorageBackend {
+public class RocksDBStorageBackend implements StorageBackend<ByteArraySerializer> {
 
   private static final Logger LOG = LoggerFactory.getLogger(RocksDBStorageBackend.class);
 
@@ -119,8 +119,8 @@ public class RocksDBStorageBackend implements StorageBackend {
   }
 
   @Override
-  public void snapshot(DataSerializer serializer) throws IOException {
-    snapshotStrategy.snapshot(serializer);
+  public void snapshot(ByteArraySerializer serializer, DataOutput output) throws IOException {
+    snapshotStrategy.snapshot(serializer, output);
   }
 
   private static Map<byte[], byte[]> getData(RocksIteratorWrapper iterator) throws IOException {
@@ -132,6 +132,8 @@ public class RocksDBStorageBackend implements StorageBackend {
       return keyValues;
     } catch (Exception e) {
       throw new IOException("iterator RocksDB data failure", e);
+    } finally {
+      iterator.close();
     }
   }
 }

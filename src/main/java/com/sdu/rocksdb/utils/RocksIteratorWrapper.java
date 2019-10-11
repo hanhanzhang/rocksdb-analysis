@@ -74,4 +74,7 @@ public class RocksIteratorWrapper implements RocksIteratorInterface {
     return iterator.value();
   }
 
+  public void close() {
+    iterator.close();
+  }
 }
