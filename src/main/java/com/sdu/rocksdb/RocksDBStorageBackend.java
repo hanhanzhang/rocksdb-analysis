@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.function.Function;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
+import org.rocksdb.FlushOptions;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
@@ -42,7 +43,7 @@ public class RocksDBStorageBackend implements StorageBackend<ByteArraySerializer
 
   private final Map<String, ColumnFamilyHandle> namespaceInformation;
 
-  public RocksDBStorageBackend(String path, Function<String, ColumnFamilyOptions> factory, SnapshotType type) {
+  public RocksDBStorageBackend(String path, Function<String, ColumnFamilyOptions> factory, SnapshotType type, boolean openLog) {
     this.writeOptions = new WriteOptions().setDisableWAL(false);
     this.columnFamilyOptionsFactory = factory;
 
@@ -53,7 +54,9 @@ public class RocksDBStorageBackend implements StorageBackend<ByteArraySerializer
      * that determines the behaviour of the database.
      * */
     Options options = new Options().setCreateIfMissing(true);
-    options.setLogger(new RocksDBLogger(options, LOG));
+    if (openLog) {
+      options.setLogger(new RocksDBLogger(options, LOG));
+    }
     options.createMissingColumnFamilies();
 //    options.setStatistics(new Statistics());
 
@@ -83,6 +86,24 @@ public class RocksDBStorageBackend implements StorageBackend<ByteArraySerializer
       db.put(columnFamilyHandle, writeOptions, key, value);
     } catch (RocksDBException e) {
       throw new IOException("put data to RocksDB failure !!!", e);
+    }
+  }
+
+  @Override
+  public void flush(String namespace) throws IOException {
+    ColumnFamilyHandle columnFamilyHandle = namespaceInformation.get(namespace);
+    if (columnFamilyHandle == null) {
+      return;
+    }
+
+    FlushOptions flushOptions = new FlushOptions();
+    flushOptions.setAllowWriteStall(true);
+    flushOptions.setWaitForFlush(true);
+
+    try {
+      db.flush(flushOptions, columnFamilyHandle);
+    } catch (RocksDBException e) {
+      throw new IOException("flush data to RocksDB failure !!!", e);
     }
   }
 
@@ -121,6 +142,15 @@ public class RocksDBStorageBackend implements StorageBackend<ByteArraySerializer
   @Override
   public void snapshot(ByteArraySerializer serializer, DataOutput output) throws IOException {
     snapshotStrategy.snapshot(serializer, output);
+  }
+
+  public RocksIteratorWrapper getRocksIterator(String namespace) {
+    ColumnFamilyHandle columnFamilyHandle = namespaceInformation.get(namespace);
+    if (columnFamilyHandle == null) {
+      return null;
+    }
+
+    return new RocksIteratorWrapper(db.newIterator(columnFamilyHandle));
   }
 
   private static Map<byte[], byte[]> getData(RocksIteratorWrapper iterator) throws IOException {
