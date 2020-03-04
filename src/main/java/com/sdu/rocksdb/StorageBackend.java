@@ -22,4 +22,5 @@ public interface StorageBackend<T extends TypeSerializer<?>> {
 
   void snapshot(T serializer, DataOutput output) throws IOException;
 
+  void close() throws IOException;
 }
