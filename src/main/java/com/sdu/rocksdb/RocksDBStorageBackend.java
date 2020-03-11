@@ -45,7 +45,7 @@ public class RocksDBStorageBackend implements StorageBackend<ByteArraySerializer
 
   private final Map<String, ColumnFamilyHandle> namespaceInformation;
 
-  public RocksDBStorageBackend(String path, SnapshotType type) {
+  public RocksDBStorageBackend(String path, SnapshotType type, RocksDBMemoryConfiguration config) {
     this.writeOptions = new WriteOptions().setDisableWAL(false);
 
     this.columnFamilyHandles = new ArrayList<>(1);
@@ -53,7 +53,7 @@ public class RocksDBStorageBackend implements StorageBackend<ByteArraySerializer
 
     // RocksDBResourceContainer管理RocksDB的内存使用
     this.resourceContainer = new RocksDBResourceContainer(
-        PredefinedOptions.DEFAULT, RocksDBOperationUtils.allocateSharedCachesIfConfigured());
+        PredefinedOptions.DEFAULT, RocksDBOperationUtils.allocateSharedCachesIfConfigured(config));
 
 
     try {

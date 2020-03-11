@@ -1,17 +1,20 @@
 package com.sdu.rocksdb.utils;
 
+import com.sdu.rocksdb.RocksDBMemoryConfiguration;
 import com.sdu.rocksdb.RocksDBSharedResources;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import org.rocksdb.Cache;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
+import org.rocksdb.WriteBufferManager;
 
 /**
  * @author hanhan.zhang
@@ -21,9 +24,14 @@ public class RocksDBOperationUtils {
   /** The name of the merge operator in RocksDB. Do not change except you know exactly what you do. */
   private static final String MERGE_OPERATOR_NAME = "stringappendtest";
 
-  public static RocksDBSharedResources allocateSharedCachesIfConfigured() {
-    // TODO:
-    return null;
+  public static RocksDBSharedResources allocateSharedCachesIfConfigured(RocksDBMemoryConfiguration configuration) {
+    Cache cache = RocksDBMemoryControllerUtils.createCache(configuration.getTotalMemorySize(),
+        configuration.getWriteBufferRatio(), configuration.getHighPriorityPoolRatio());
+
+    WriteBufferManager wbm = RocksDBMemoryControllerUtils.createWriteBufferManager(configuration.getTotalMemorySize(),
+        configuration.getWriteBufferRatio(), cache);
+
+    return new RocksDBSharedResources(cache, wbm);
   }
 
 
